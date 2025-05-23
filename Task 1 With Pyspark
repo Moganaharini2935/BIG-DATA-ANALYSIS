@@ -130,16 +130,6 @@ if 'Year' in df.columns:
 else:
     print("No 'Year' column found in the dataset.")
 
-#pairplot
-from pyspark.sql.types import DoubleType, IntegerType, LongType, FloatType
-import pandas as pd
-numeric_cols = [field.name for field in df.schema if isinstance(field.dataType, (DoubleType, IntegerType, LongType, FloatType))]
-if "High_Risk_Cases" not in numeric_cols and "High_Risk_Cases" in df.columns:
-    numeric_cols.append("High_Risk_Cases")
-df_pandas = df.select(numeric_cols).limit(1000).toPandas()
-sns.pairplot(df_pandas, diag_kind='kde', corner=True)
-plt.show()
-
 #Correlation Heatmap 
 plt.figure(figsize=(10, 8))
 # Filter out the columns you want to exclude from the numeric_cols list
