@@ -21,6 +21,8 @@ In the data preparation stage, the data is cleansed by removing duplicates, hand
 Finally, the analysis is enhanced with a comprehensive "visualization section" featuring histograms for distribution patterns, line plots to track time-based trends, correlation heatmaps to reveal variable relationships, and hexbin plots to detect dense clusters of financial risk.
 
 OUTPUT:
+
+
 <img width="464" alt="Image" src="https://github.com/user-attachments/assets/f0419c25-7e2f-4177-82d1-648623c8ed30" />
 
 <img width="488" alt="Image" src="https://github.com/user-attachments/assets/8a7fdb7e-5c09-499b-9ad1-d07f1fe4c9bc" />
