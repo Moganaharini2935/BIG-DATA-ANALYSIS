@@ -22,13 +22,4 @@ Finally, the analysis is enhanced with a comprehensive "visualization section" f
 
 OUTPUT:
 
-
-<img width="464" alt="Image" src="https://github.com/user-attachments/assets/f0419c25-7e2f-4177-82d1-648623c8ed30" />
-
-<img width="488" alt="Image" src="https://github.com/user-attachments/assets/8a7fdb7e-5c09-499b-9ad1-d07f1fe4c9bc" />
-
-<img width="532" alt="Image" src="https://github.com/user-attachments/assets/08fb2a02-27be-4cdd-afec-936013c154fe" />
-
-<img width="504" alt="Image" src="https://github.com/user-attachments/assets/f6c2f4fa-7419-4593-b003-9fc43d067ae3" />
-
-![Image](https://github.com/user-attachments/assets/b5d1e679-4e49-43b0-a752-bf5226ab0537)
+[Screenshot 2025-05-22 215348 (2).pdf](https://github.com/user-attachments/files/20412553/Screenshot.2025-05-22.215348.2.pdf)
