@@ -10,7 +10,7 @@ DURATION : 4 WEEKS
 
 MENTOR : NEELA SANTHOSH
 
-Description Of My Task: "Big Data Analysis of Financial Risk within Big 4 Firms Using PySpark"
+DESCRIPTION OF MY TASK 1 : "Big Data Analysis of Financial Risk within Big 4 Firms Using PySpark"
 
 This project leverages PySpark for scalable financial risk analysis within the Big 4 accounting firms. The process begins with loading large-scale datasets into Spark DataFrames, followed by an initial data exploration phase to understand the dataset’s structure, distribution, and key attributes.
 In the data preparation stage, the data is cleansed by removing duplicates, handling missing values, and ensuring proper data type casting to facilitate accurate computations.Next, the analysis proceeds to descriptive statistics, where key aggregated metrics are computed for each firm. A custom risk score is derived based on factors such as audit performance, compliance records, and reported financial anomalies.
