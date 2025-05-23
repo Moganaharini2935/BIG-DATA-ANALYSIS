@@ -1,0 +1,164 @@
+from pyspark.sql import SparkSession
+import seaborn as sns
+import matplotlib.pyplot as plt
+
+# Create a Spark session
+spark = SparkSession.builder \
+    .appName("Big4 Financial Risk Analysis") \
+    .getOrCreate()
+
+# Load CSV data
+df = spark.read.csv("/content/archive.csv", header=True, inferSchema=True)
+df.show()
+
+#Data Preparation
+df.dtypes
+df.printSchema()
+print("Total rows:", df.count()) # Count rows
+df.describe().show() # Summary statistics
+df_cleaned = df.dropDuplicates()
+df_cleaned.printSchema()
+print("ToT rows after dropping duplicates:", df_cleaned.count())
+
+#Descriptive Big Data Analysis & Processing
+from pyspark.sql.functions import col
+df_cleaned = df.na.fill(0).dropDuplicates()
+df_cleaned = df_cleaned.withColumn("Year", col("Year").cast("double"))
+df_cleaned.show(7)
+from pyspark.sql.functions import avg, sum, col, lag
+
+# Average audit failures, fraud cases, etc., per firm
+df.groupBy("Firm_Name").agg(
+    avg("Total_Audit_Engagements").alias("TOT_audit"),
+    sum("Total_Revenue_Impact").alias("sum_revenue"),).show()
+
+aggregated_df = df.groupBy("Firm_Name").agg(
+    avg("Total_Audit_Engagements").alias("TOT_audit_sum"),
+    sum("Total_Revenue_Impact").alias("sum_revenue_sum"),)
+aggregated_df = aggregated_df.withColumn( "Risk_Score",
+    col("TOT_audit_sum") + col("sum_revenue_sum"))
+aggregated_df.show()
+df.select("AI_Used_for_Auditing", "Fraud_Cases_Detected").summary("mean", "min", "max").show()
+
+#Time Series Analysis with Window
+from pyspark.sql.window import Window
+windowSpec = Window.partitionBy("Firm_Name").orderBy("Year")
+df = df.withColumn("Total_Audit_Engagements", avg("Compliance_Violations").over(windowSpec)) \
+       .withColumn("Total_Revenue_Impact", col("Audit_Effectiveness_Score") - lag("Audit_Effectiveness_Score", 1).over(windowSpec))
+df.select("Firm_Name", "Year", "Compliance_Violations", "Total_Audit_Engagements", "Total_Revenue_Impact","Audit_Effectiveness_Score").show(15)
+from pyspark.ml.feature import VectorAssembler
+from pyspark.sql.types import DoubleType
+from pyspark.sql.functions import col,when
+
+if "AI_Used_for_Auditing" in df.columns and df.schema["AI_Used_for_Auditing"].dataType != DoubleType():
+    df = df.withColumn("AI_Used_for_Auditing", col("AI_Used_for_Auditing").cast(DoubleType()))
+
+feature_cols = ["Fraud_Cases_Detected", "Compliance_Violations", "AI_Used_for_Auditing"]
+df = df.na.fill(0, subset=feature_cols)
+
+assembler = VectorAssembler(inputCols=feature_cols, outputCol="features")
+# Transform the data
+data = assembler.transform(df).select("features", "Fraud_Cases_Detected")
+data.show(truncate=False)
+train_data, test_data = data.randomSplit([0.8, 0.2], seed=42)
+
+# Import the Linear Regression model
+from pyspark.ml.regression import LinearRegression
+lr = LinearRegression(featuresCol="features", labelCol="Fraud_Cases_Detected")
+
+# model on the training data
+lr_model = lr.fit(train_data)
+predictions = lr_model.transform(test_data)
+predictions.select("features", "Fraud_Cases_Detected", "prediction").show(7)
+
+print(f"R²: {lr_model.summary.r2}")
+print(f"RMSE: {lr_model.summary.rootMeanSquaredError}")
+high_risk_industries = ["Financial Services", "Healthcare", "Real Estate"]
+from pyspark.sql.functions import when, col
+
+df = df.withColumn("Industry_Fraud_Alert",
+                   when((col("Fraud_Cases_Detected") == "HIGH RISK") | (col("Fraud_Cases_Detected") == "MEDIUM RISK"), # Check for higher risk fraud status
+                        when(col("Industry_Affected").isin(high_risk_industries), "INDUSTRY RISK ALERT") # Check if industry is in the high-risk list
+                        .otherwise("NORMAL"))
+                   .otherwise("NORMAL"))
+
+# industry-specific fraud alerts
+df.select("Firm_Name", "Year", "Industry_Affected", "Fraud_Cases_Detected", "Industry_Fraud_Alert").filter(col("Industry_Fraud_Alert") == "INDUSTRY RISK ALERT").show(15)
+
+df.groupBy("Industry_Affected", "Fraud_Cases_Detected", "Industry_Fraud_Alert").count().show()
+
+#Visualization with pyspark
+
+import matplotlib.pyplot as plt
+import seaborn as sns
+import numpy as np
+from pyspark.sql.types import DoubleType, IntegerType, LongType, FloatType
+
+# numerical column
+numeric_cols = [field.name for field in df.schema if isinstance(field.dataType, (DoubleType, IntegerType, LongType, FloatType))]
+if "High_Risk_Cases" not in numeric_cols:
+    numeric_cols.append("High_Risk_Cases")
+plt.figure(figsize=(16, 12))
+for i, col_name in enumerate(numeric_cols):
+    if i >= 9:
+        break
+    plt.subplot(3, 3, i+1)
+    # To plot with seaborn, we need to convert the column to a pandas Series
+    sns.histplot(df.select(col_name).limit(1000).toPandas()[col_name], kde=True, color='purple', bins=30) # Increased bins
+    plt.title(col_name)
+plt.tight_layout()
+plt.show()
+
+#Yearly Trends in Key Metrics
+if 'Year' in df.columns:
+    key_metrics = ['Total_Audit_Engagements', 'High_Risk_Cases', 'Fraud_Cases_Detected', 'Compliance_Violations']
+    df_yearly = df.groupby('Year').agg({metric: 'mean' for metric in key_metrics})
+    df_yearly_pandas = df_yearly.toPandas()
+    plt.figure(figsize=(14, 8))
+    for metric in key_metrics:
+        pandas_col_name = f"avg({metric})"
+        # Plot using the pandas DataFrame
+        if pandas_col_name in df_yearly_pandas.columns:
+            plt.plot(df_yearly_pandas['Year'], df_yearly_pandas[pandas_col_name], marker='o', label=metric)
+        else:
+            print(f"Column {pandas_col_name} not found in the aggregated pandas DataFrame.")
+    plt.xlabel("Year")
+    plt.ylabel("Average Value")
+    plt.title("Yearly Trends in Key Metrics")
+    plt.legend()
+    plt.show()
+else:
+    print("No 'Year' column found in the dataset.")
+
+#pairplot
+from pyspark.sql.types import DoubleType, IntegerType, LongType, FloatType
+import pandas as pd
+numeric_cols = [field.name for field in df.schema if isinstance(field.dataType, (DoubleType, IntegerType, LongType, FloatType))]
+if "High_Risk_Cases" not in numeric_cols and "High_Risk_Cases" in df.columns:
+    numeric_cols.append("High_Risk_Cases")
+df_pandas = df.select(numeric_cols).limit(1000).toPandas()
+sns.pairplot(df_pandas, diag_kind='kde', corner=True)
+plt.show()
+
+#Correlation Heatmap 
+plt.figure(figsize=(10, 8))
+# Filter out the columns you want to exclude from the numeric_cols list
+numeric_cols_filtered = [col for col in numeric_cols if col not in ["High_Risk_Cases", "AI_Used_for_Auditing"]]
+df_pandas_numeric = df.select(numeric_cols_filtered).toPandas()
+corr = df_pandas_numeric.corr()
+sns.heatmap(corr, annot=True, cmap='viridis', fmt=".2f")
+plt.title("Correlation Heatmap (Excluding High Risk Cases and AI Used for Auditing)") # Updated title
+plt.show()
+
+#Hexbin Plot of Employee Workload vs. Audit Effectiveness
+plt.figure(figsize=(8, 6))
+try:
+    df_for_hexbin = df.select("Employee_Workload", "Audit_Effectiveness_Score").toPandas()
+    plt.hexbin(df_for_hexbin["Employee_Workload"], df_for_hexbin["Audit_Effectiveness_Score"], gridsize=20)
+    plt.xlabel("Employee Workload")
+    plt.ylabel("Audit Effectiveness")
+    plt.title("Hexbin Plot of Employee Workload vs. Audit Effectiveness")
+    plt.show()
+except Exception as e:
+    print(f"An error occurred while creating the hexbin plot: {e}")
+    print("Please ensure 'Employee_Workload' and 'Audit_Effectiveness_Score' columns exist in your DataFrame and are of numeric type.")
